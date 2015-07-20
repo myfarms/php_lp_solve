@@ -1,0 +1,20 @@
+ARG_ENABLE("phplpsolve55", "enable lpsolve55 extension", "no");
+ARG_WITH("phplpsolve55path", "Path to lp_solve", "");
+WARNING(PHP_PHPLPSOLVE55);
+WARNING(PHP_PHPLPSOLVE55PATH);
+if (PHP_PHPLPSOLVE55 != "no") {
+    var WshShell = WScript.CreateObject("WScript.Shell");
+    var PATH = WshShell.Environment("Process").Item("PATH");
+
+    if (!CHECK_HEADER_ADD_INCLUDE("lp_lib.h", "CFLAGS_PHPLPSOLVE55", PHP_PHPLPSOLVE55PATH, false))
+        ERROR("lp_lib.h not found in directory " + PHP_PHPLPSOLVE55PATH);
+    ADD_FLAG('CFLAGS_PHPLPSOLVE55', "/DPHP=1 /DDEMO=1");
+
+    if (!CHECK_LIB("lpsolve55.dll", "make_lp", PATH + ";" + PHP_PHPLPSOLVE55PATH + ";" + PHP_PHPLPSOLVE55PATH + "\\lpsolve55"))
+        ERROR("lpsolve55.dll not found");
+
+    ADD_FLAG('LDFLAGS_PHPLPSOLVE55', "/libpath:" + PHP_PHPLPSOLVE55PATH + " /libpath:" + PHP_PHPLPSOLVE55PATH + "\\lpsolve55");
+    ADD_FLAG('LIBS_PHPLPSOLVE55', 'lpsolve55.lib');
+
+    EXTENSION("phplpsolve55", "PHPmod.c hash.c lpsolve.c", null);
+}
