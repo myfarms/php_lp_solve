@@ -2,7 +2,7 @@
 
 extern PHP_FUNCTION(drivername);
 
-static function_entry php_phplpsolve55_functions[] = {
+static zend_function_entry php_phplpsolve55_functions[] = {
     PHP_FE(drivername, NULL)
     { NULL, NULL, NULL }
 };
