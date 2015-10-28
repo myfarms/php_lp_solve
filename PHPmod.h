@@ -37,8 +37,8 @@ extern zend_module_entry phplpsolve55_module_entry;
 #define matCalloc calloc
 #define matFree free
 
-#define rMatrix zval *
-#define pMatrix zval **
+#define rMatrix zval
+#define pMatrix zval *
 #define strArray char **
 
 #define putlogfunc put_logfunc
@@ -56,9 +56,9 @@ extern zend_module_entry phplpsolve55_module_entry;
 #endif
 
 #define publicargs(lpsolve) \
-        (lpsolve)->lpsolvecaller.nlhs = (return_value_used ? 99 : 0); \
+        (lpsolve)->lpsolvecaller.nlhs = 99; \
         (lpsolve)->lpsolvecaller.plhs = return_value; \
-	(lpsolve)->lpsolvecaller.nrhs = ZEND_NUM_ARGS(); \
+        (lpsolve)->lpsolvecaller.nrhs = ZEND_NUM_ARGS(); \
         set_tsrm_ls(lpsolve); \
 
 #define registerExitFcn(lpsolve)
@@ -73,7 +73,7 @@ typedef struct
         jmp_buf exit_mark;
         int  nrhs;
         int  nlhs;
-        zval *plhs;
+        zval * plhs;
         void *tsrm_ls;
 } structlpsolvecaller;
 

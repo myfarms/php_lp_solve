@@ -175,18 +175,23 @@ int ErrMsgTxt(structlpsolvecaller *lpsolvecaller, char *str)
         return(0);
 }
 
-zval *GetpMatrix(structlpsolvecaller *lpsolvecaller, int element)
+zval GetpMatrix(structlpsolvecaller *lpsolvecaller, int element)
 {
-        zval *arg = NULL;
+        zval arg;
+        ZVAL_UNDEF(&arg);
 
         if ((element >= 0) && (element < lpsolvecaller->nrhs)) {
-                zval ***arg_array;
+                zval *arg_array = NULL;
 
-                arg_array = (zval ***) malloc(lpsolvecaller->nrhs * sizeof(*arg_array));
-                if (arg_array != NULL) {
-                        if (zend_get_parameters_array_ex(lpsolvecaller->nrhs, arg_array) != FAILURE)
-                                arg = *arg_array[element];
-                	free(arg_array);
+                //arg_array = (zval *) malloc(lpsolvecaller->nrhs * sizeof(arg_array));
+                arg_array = (zval *)safe_emalloc(sizeof(zval), lpsolvecaller->nrhs, 0);
+                if (zend_get_parameters_array_ex(lpsolvecaller->nrhs, arg_array) != FAILURE) {
+                    arg = arg_array[element];
+                    //printf("--%d: %d--\n", element, Z_TYPE(arg));
+                }
+
+                if (arg_array) {
+                    efree(arg_array);
                 }
         }
         return(arg);
@@ -195,39 +200,41 @@ zval *GetpMatrix(structlpsolvecaller *lpsolvecaller, int element)
 int GetString(structlpsolvecaller *lpsolvecaller, pMatrix ppm, int element, char *buf, int size, int ShowError)
 {
         int size1;
-        zval *arg = NULL;
+        zval arg;
+        ZVAL_UNDEF(&arg);
 
         if (ppm != NULL) {
-                ErrMsgTxt(lpsolvecaller, "invalid vector.");
+            ErrMsgTxt(lpsolvecaller, "invalid vector.");
         }
         arg = GetpMatrix(lpsolvecaller, element);
-        if ((arg != NULL) && (Z_TYPE_P(arg) != IS_STRING))
-                arg = NULL;
-        if (arg == NULL) {
-        	if (ShowError)
-                	ErrMsgTxt(lpsolvecaller, "Expecting a character element");
+        if ((!Z_ISUNDEF(arg)) && (Z_TYPE(arg) != IS_STRING)) {
+            ZVAL_UNDEF(&arg);
+        }
+        if (Z_ISUNDEF(arg)) {
+            if (ShowError)
+                    ErrMsgTxt(lpsolvecaller, "Expecting a character element");
                 return(FALSE);
         }
-        size1 = Z_STRLEN_P(arg);
+        size1 = Z_STRLEN(arg);
         if (size1 < size)
-                size =size1;
-        memcpy(buf, Z_STRVAL_P(arg), size);
+                size = size1;
+        memcpy(buf, Z_STRVAL(arg), size);
         buf[size] = 0;
         return(TRUE);
 }
 
 /* Function to get a real scalar with error checking */
 
-Double GetRealArg(structlpsolvecaller *lpsolvecaller, zval *arg)
+Double GetRealArg(structlpsolvecaller *lpsolvecaller, zval arg)
 {
         Double a = 0.0;
 
-        switch (Z_TYPE_P(arg)) {
+        switch (Z_TYPE(arg)) {
         case IS_LONG:
-                a = (Double) Z_LVAL_P(arg);
+                a = (Double) Z_LVAL(arg);
                 break;
         case IS_DOUBLE:
-                a = (Double) Z_DVAL_P(arg);
+                a = (Double) Z_DVAL(arg);
                 break;
         default:
                 ErrMsgTxt(lpsolvecaller, "Expecting a scalar value.");
@@ -238,16 +245,20 @@ Double GetRealArg(structlpsolvecaller *lpsolvecaller, zval *arg)
 
 Double GetRealScalar(structlpsolvecaller *lpsolvecaller, int element)
 {
-        zval *arg;
+        zval arg;
+        ZVAL_UNDEF(&arg);
         Double a = 0.0;
 
         arg = GetpMatrix(lpsolvecaller, element);
-        if ((arg != NULL) && (Z_TYPE_P(arg) != IS_LONG) && (Z_TYPE_P(arg) != IS_DOUBLE))
-                arg = NULL;
-        if (arg == NULL) {
-                ErrMsgTxt(lpsolvecaller, "Expecting a scalar argument.");
+
+        if ((!Z_ISUNDEF(arg)) && (Z_TYPE(arg) != IS_LONG) && (Z_TYPE(arg) != IS_DOUBLE)) {
+            ZVAL_UNDEF(&arg);
         }
-        else {
+
+        if (Z_ISUNDEF(arg)) {
+            abort();
+            ErrMsgTxt(lpsolvecaller, "Expecting a scalar argument.");
+        } else {
                 a = GetRealArg(lpsolvecaller, arg);
         }
         return(a);
@@ -255,35 +266,33 @@ Double GetRealScalar(structlpsolvecaller *lpsolvecaller, int element)
 
 /* This is not the number of elements in the array, but the maximum index number in it.
    This to allow sparse arrays */
-int GetM(structlpsolvecaller *lpsolvecaller, zval *arg)
+int GetM(structlpsolvecaller *lpsolvecaller, zval arg)
 {
         int m;
         HashTable *arr_hash;
-        zval    **data;
-        HashPosition pointer;
+        zval    *data;
+        long i;
+        zend_string *key;
+        int key_len;
 
-        switch (Z_TYPE_P(arg)) {
+        switch (Z_TYPE(arg)) {
         case IS_LONG:
         case IS_DOUBLE:
                 m = 1;
                 break;
         case IS_ARRAY:
-                arr_hash = Z_ARRVAL_P(arg);
+                arr_hash = Z_ARRVAL(arg);
                 /* m = zend_hash_num_elements(arr_hash); */
 
                 m = 0;
-                for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer); zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; zend_hash_move_forward_ex(arr_hash, &pointer)) {
-                	char *key;
-            		int key_len;
-            		long i;
+                ZEND_HASH_FOREACH_KEY_VAL(arr_hash, i, key, data) {
 
-            		if ((zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &i, 0, &pointer) == HASH_KEY_IS_STRING) ||
-                            (i < 0)) {
-        			ErrMsgTxt(lpsolvecaller, "invalid vector.");
-                        }
-                        if (i + 1 >= m)
-                                m = i + 1;
-                }
+                    if (key || (i < 0)) {
+                        ErrMsgTxt(lpsolvecaller, "invalid vector.");
+                    }
+                    if (i + 1 >= m)
+                        m = i + 1;
+                } ZEND_HASH_FOREACH_END();
                 break;
         default:
                 m = 0;
@@ -292,36 +301,33 @@ int GetM(structlpsolvecaller *lpsolvecaller, zval *arg)
         return(m);
 }
 
-int GetN(structlpsolvecaller *lpsolvecaller, zval *arg)
+int GetN(structlpsolvecaller *lpsolvecaller, zval arg)
 {
         int n, n1;
         HashTable *arr_hash;
-        zval    **data;
-        HashPosition pointer;
+        zval    *data;
+        zend_string *key;
+        long i;
 
-        switch (Z_TYPE_P(arg)) {
+        switch (Z_TYPE(arg)) {
         case IS_LONG:
         case IS_DOUBLE:
                 n = 1;
                 break;
         case IS_ARRAY:
                 //n = 1; /* only 1-dim arrays supported at this time */
-                arr_hash = Z_ARRVAL_P(arg);
+                arr_hash = Z_ARRVAL(arg);
 
                 n = 0;
-                for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer); zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; zend_hash_move_forward_ex(arr_hash, &pointer)) {
-                	char *key;
-            		int key_len;
-            		long i;
+                ZEND_HASH_FOREACH_KEY_VAL(arr_hash, i, key, data) {
 
-            		if ((zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &i, 0, &pointer) == HASH_KEY_IS_STRING) ||
-                            (i < 0)) {
-        			ErrMsgTxt(lpsolvecaller, "invalid vector.");
-                        }
-                        n1 = GetM(lpsolvecaller, *data);
-                        if (n1 >= n)
-                                n = n1;
-                }
+                    if (key || (i < 0)) {
+                        ErrMsgTxt(lpsolvecaller, "invalid vector.");
+                    }
+                    n1 = GetM(lpsolvecaller, *data);
+                    if (n1 >= n)
+                        n = n1;
+                } ZEND_HASH_FOREACH_END();
                 break;
         default:
                 n = 0;
@@ -333,12 +339,14 @@ int GetN(structlpsolvecaller *lpsolvecaller, zval *arg)
 #define GetVector(lpsolvecaller, element, vec, cast, start, len, exactcount, ret) \
 { \
 	int	m, n, count = 0; \
-        zval    *pm, **data; \
+        zval    pm, *data; \
         HashTable *arr_hash; \
-        HashPosition pointer; \
+        zend_string *key; \
+        int key_len; \
+        ulong i; \
  \
         pm = GetpMatrix(lpsolvecaller, element); \
-        if ((pm == NULL) || (Z_TYPE_P(pm) != IS_ARRAY)) \
+        if ((Z_ISUNDEF(pm)) || (Z_TYPE(pm) != IS_ARRAY)) \
 		ErrMsgTxt(lpsolvecaller, "invalid vector."); \
  \
 	m = GetM(lpsolvecaller, pm); \
@@ -353,20 +361,14 @@ int GetN(structlpsolvecaller *lpsolvecaller, zval *arg)
         vec += start; \
  \
         memset(vec, 0, len * sizeof(*vec)); \
-        arr_hash = Z_ARRVAL_P(pm); \
-        for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer); zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; zend_hash_move_forward_ex(arr_hash, &pointer)) { \
-        	char *key; \
-    		int key_len; \
-    		long i; \
- \
-    		if ((zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &i, 0, &pointer) == HASH_KEY_IS_STRING) || \
-                    (i < 0) || (i >= len)) { \
-			ErrMsgTxt(lpsolvecaller, "invalid vector."); \
-                } \
-     		else { \
-                        vec[i] = (cast) GetRealArg(lpsolvecaller, *data); \
-                } \
-        } \
+        arr_hash = Z_ARRVAL(pm); \
+        ZEND_HASH_FOREACH_KEY_VAL(arr_hash, i, key, data) { \
+            if (key || (i < 0) || (i >= len)) { \
+                ErrMsgTxt(lpsolvecaller, "invalid vector."); \
+            } else { \
+                vec[i] = (cast) GetRealArg(lpsolvecaller, *data); \
+            } \
+        } ZEND_HASH_FOREACH_END(); \
  \
         count = len; \
  \
@@ -398,14 +400,15 @@ int GetRealVector(structlpsolvecaller *lpsolvecaller, int element, Double *vec, 
 int GetRealSparseVector(structlpsolvecaller *lpsolvecaller, int element, Double *vec, int *index, int start, int len, int col)
 {
 	int	m, n, count = 0;
-        zval    *pm = GetpMatrix(lpsolvecaller, element);
-        zval    **data;
+        zval    pm = GetpMatrix(lpsolvecaller, element);
+        zval    *data;
         HashTable *arr_hash;
-        HashPosition pointer;
         Double a;
+        zend_string *key;
+        ulong i;
 
-        if ((pm == NULL) || (Z_TYPE_P(pm) != IS_ARRAY)) {
-		ErrMsgTxt(lpsolvecaller, "invalid vector.");
+        if ((Z_ISUNDEF(pm)) || (Z_TYPE(pm) != IS_ARRAY)) {
+            ErrMsgTxt(lpsolvecaller, "invalid vector.");
         }
 
 #if 1
@@ -429,78 +432,71 @@ int GetRealSparseVector(structlpsolvecaller *lpsolvecaller, int element, Double 
                 ErrMsgTxt(lpsolvecaller, "invalid vector.");
         }
 
-        arr_hash = Z_ARRVAL_P(pm);
-        for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer); zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; zend_hash_move_forward_ex(arr_hash, &pointer)) {
-        	char *key;
-    		int key_len;
-    		long i;
+        arr_hash = Z_ARRVAL(pm);
+        ZEND_HASH_FOREACH_KEY_VAL(arr_hash, i, key, data) {
 
-    		if ((zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &i, 0, &pointer) == HASH_KEY_IS_STRING)) {
-			ErrMsgTxt(lpsolvecaller, "invalid vector.");
+            if (key) {
+                ErrMsgTxt(lpsolvecaller, "invalid vector.");
+            } else {
+                zval pm = *data;
+
+                a = 0;
+
+                if (Z_TYPE(pm) == IS_ARRAY) {
+                    zval    *data;
+                    HashTable *arr_hash;
+                    zend_string *key;
+                    ulong i;
+
+                    arr_hash = Z_ARRVAL(pm);
+                    ZEND_HASH_FOREACH_KEY_VAL(arr_hash, i, key, data) {
+
+                        if (key) {
+                            ErrMsgTxt(lpsolvecaller, "invalid vector.");
+                        } else if (i + 1 == col) {
+                            a = GetRealArg(lpsolvecaller, *data);
+                            break;
+                        }
+                    } ZEND_HASH_FOREACH_END();
+                } else {
+                        a = GetRealArg(lpsolvecaller, pm);
                 }
-     		else {
-                        zval *pm = *data;
 
-                        a = 0;
-
-                        if (Z_TYPE_P(pm) == IS_ARRAY) {
-                                zval    **data;
-                                HashTable *arr_hash;
-                                HashPosition pointer;
-
-                                arr_hash = Z_ARRVAL_P(pm);
-                                for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer); zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; zend_hash_move_forward_ex(arr_hash, &pointer)) {
-                                	char *key;
-                            		int key_len;
-                            		long i;
-
-                            		if ((zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &i, 0, &pointer) == HASH_KEY_IS_STRING)) {
-                        			ErrMsgTxt(lpsolvecaller, "invalid vector.");
-                                        }
-                             		else if (i + 1 == col) {
-                                                a = GetRealArg(lpsolvecaller, *data);
-                                                break;
-                                        }
-                                }
-                        }
-                        else {
-                                a = GetRealArg(lpsolvecaller, pm);
-                        }
-
-                        if (a) {
-				*(vec++) = a;
-                		*(index++) = start + i;
-                		count++;
-                        }
+                if (a) {
+                    *(vec++) = a;
+                    *(index++) = start + i;
+                    count++;
                 }
-        }
+            }
+        } ZEND_HASH_FOREACH_END();
 
         return(count);
 }
 
 void FreeCellCharItems(strArray pa, int len)
 {
-        int i;
+    int i;
 
-        for (i = 0; i < len; i++)
-                if (pa[i] != empty)
-                	matFree(pa[i]);
-	matFree(pa);
+    for (i = 0; i < len; i++)
+        if (pa[i] != empty)
+            matFree(pa[i]);
+    matFree(pa);
 }
 
 strArray GetCellCharItems(structlpsolvecaller *lpsolvecaller, int element, int len, int ShowError)
 {
-        int m, i;
+        int m;
         rMatrix x_in = GetpMatrix(lpsolvecaller, element);
-        zval    **data, *arg;
+        zval    *data, arg;
         HashTable *arr_hash;
-        HashPosition pointer;
         char **pa, *str;
         int size1;
+        zend_string *key;
+        ulong i;
 
-        if ((x_in == NULL) || (Z_TYPE_P(x_in) != IS_ARRAY)) {
+        if ((Z_ISUNDEF(x_in)) || (Z_TYPE(x_in) != IS_ARRAY)) {
                 if (ShowError)
-                        ErrMsgTxt(lpsolvecaller, "invalid vector.");
+                    ErrMsgTxt(lpsolvecaller, "invalid vector.");
                 return(NULL);
         }
 
@@ -513,36 +509,32 @@ strArray GetCellCharItems(structlpsolvecaller *lpsolvecaller, int element, int l
 
         pa = (char **) matCalloc(len, sizeof(*pa));
         for (i = 0; i < len; i++)
-                pa[i] = empty;
+            pa[i] = empty;
 
-        arr_hash = Z_ARRVAL_P(x_in);
-        for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer); zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; zend_hash_move_forward_ex(arr_hash, &pointer)) {
-        	char *key;
-    		int key_len;
-    		long i;
+        arr_hash = Z_ARRVAL(x_in);
+        ZEND_HASH_FOREACH_KEY_VAL(arr_hash, i, key, data) {
 
-    		if ((zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &i, 0, &pointer) == HASH_KEY_IS_STRING)) {
-                        FreeCellCharItems(pa, len);
-                        ErrMsgTxt(lpsolvecaller, "invalid vector.");
+            if (key) {
+                FreeCellCharItems(pa, len);
+                ErrMsgTxt(lpsolvecaller, "invalid vector.");
+            } else {
+                if ((i < 0) || (i >= len)) {
+                    FreeCellCharItems(pa, len);
+                    ErrMsgTxt(lpsolvecaller, "invalid vector.");
                 }
-     		else {
-                        if ((i < 0) || (i >= len)) {
-                        	FreeCellCharItems(pa, len);
-                      		ErrMsgTxt(lpsolvecaller, "invalid vector.");
-                        }
-                        arg = *data;
-                        if ((arg != NULL) && (Z_TYPE_P(arg) != IS_STRING))
-                                arg = NULL;
-                        if (arg == NULL) {
-                        	FreeCellCharItems(pa, len);
-                                ErrMsgTxt(lpsolvecaller, "Expecting a character element");
-                        }
-                        size1 = Z_STRLEN_P(arg);
-                        pa[i] = str = matCalloc(size1 + 1, sizeof(*str));
-        		memcpy(str, Z_STRVAL_P(arg), size1);
-                        str[size1] = 0;
+                arg = *data;
+                if ((Z_ISUNDEF(arg)) && (Z_TYPE(arg) != IS_STRING))
+                    ZVAL_UNDEF(&arg);
+                if (Z_ISUNDEF(arg)) {
+                    FreeCellCharItems(pa, len);
+                    ErrMsgTxt(lpsolvecaller, "Expecting a character element");
                 }
-        }
+                size1 = Z_STRLEN(arg);
+                pa[i] = str = matCalloc(size1 + 1, sizeof(*str));
+                memcpy(str, Z_STRVAL(arg), size1);
+                str[size1] = 0;
+            }
+        } ZEND_HASH_FOREACH_END();
         return(pa);
 }
 
@@ -555,106 +547,104 @@ void GetCellString(structlpsolvecaller *lpsolvecaller, char **pa, int element, c
         (cast *) malloc(m * n * sizeof(cast))
 
 #define SetMatrix(lpsolvecaller, mat, m, n, element, freemat, cast, type) \
-if ((lpsolvecaller->nlhs > 0) && (mat != NULL)) { \
+    if ((lpsolvecaller->nlhs > 0) && (mat != NULL)) { \
         if (element == 1) { \
-                zval *return_value0; \
-\
-                /* copy return_value to return_value0 */ \
-                MAKE_STD_ZVAL(return_value0); \
-                *return_value0 = *lpsolvecaller->plhs; \
-                zval_copy_ctor(return_value0); \
-    		array_init(lpsolvecaller->plhs); \
-                add_next_index_zval(lpsolvecaller->plhs, return_value0); \
+            zval return_value0; \
+            \
+            /* copy return_value to return_value0 */ \
+            ZVAL_COPY_VALUE(&return_value0, lpsolvecaller->plhs); \
+            \
+            array_init(lpsolvecaller->plhs); \
+            add_next_index_zval(lpsolvecaller->plhs, &return_value0); \
         } \
         if (m * n == 1) { \
-                switch (type) { \
+            switch (type) { \
                 case IS_LONG: \
-                        if (element == 0) { \
-                                ZVAL_LONG(lpsolvecaller->plhs, *((long *) mat)); \
-                        } \
-                        else { \
-				add_next_index_long(lpsolvecaller->plhs, *((long *) mat)); \
-                        } \
-                        break; \
+                    if (element == 0) { \
+                        ZVAL_LONG(lpsolvecaller->plhs, *((long *) mat)); \
+                    } \
+                    else { \
+                        add_next_index_long(lpsolvecaller->plhs, *((long *) mat)); \
+                    } \
+                break; \
                 case IS_DOUBLE: \
-                        if (element == 0) { \
-                        	ZVAL_DOUBLE(lpsolvecaller->plhs, *((double *) mat)); \
-                        } \
-                        else { \
-            			add_next_index_double(lpsolvecaller->plhs, *((double *) mat)); \
-                        } \
-                        break; \
+                    if (element == 0) { \
+                        ZVAL_DOUBLE(lpsolvecaller->plhs, *((double *) mat)); \
+                    } \
+                    else { \
+                        add_next_index_double(lpsolvecaller->plhs, *((double *) mat)); \
+                    } \
+                break; \
                 case IS_STRING: \
-                        if (element == 0) { \
-                                ZVAL_STRING(lpsolvecaller->plhs, *((char **) mat), 1); \
-                        } \
-                        else { \
-            			add_next_index_string(lpsolvecaller->plhs, *((char **) mat), 1); \
-                        } \
-                        break; \
-                } \
+                    if (element == 0) { \
+                        ZVAL_STRING(lpsolvecaller->plhs, *((char **) mat)); \
+                    } \
+                    else { \
+                        add_next_index_string(lpsolvecaller->plhs, *((char **) mat)); \
+                    } \
+                break; \
+            } \
         } \
         else { \
-                int len, size, i, j; \
-                long *matl0, *matl; \
-                double *matd0, *matd; \
-                char **mats0, **mats; \
-                zval *z, *z1; \
-\
-                if (m == 1) { \
-                        len = m; \
-                        size = n; \
+            int len, size, i, j; \
+            long *matl0, *matl; \
+            double *matd0, *matd; \
+            char **mats0, **mats; \
+            zval *zp, *z1p; \
+            zval z; \
+            \
+            if (m == 1) { \
+                len = m; \
+                size = n; \
+            } \
+            else { \
+                len = n; \
+                size = m; \
+            } \
+            if (element == 0) { \
+                zp = lpsolvecaller->plhs; \
+            } \
+            else { \
+                zp = &z; \
+            } \
+            array_init(zp); \
+            z1p = zp; \
+            matl0 = (long *) mat; \
+            matd0 = (double *) mat; \
+            mats0 = (char **) mat; \
+            for (i = 0; i < size; i++) { \
+                matl = matl0++; \
+                matd = matd0++; \
+                mats = mats0++; \
+                if (len != 1) { \
+                    array_init(z1p); \
                 } \
-                else { \
-                        len = n; \
-                        size = m; \
+                for (j = 0; j < len; j++) { \
+                    switch (type) { \
+                        case IS_LONG: \
+                            add_next_index_long(z1p, *matl); \
+                            matl += size; \
+                        break; \
+                        case IS_DOUBLE: \
+                            add_next_index_double(z1p, *matd); \
+                            matd += size; \
+                        break; \
+                        case IS_STRING: \
+                            add_next_index_string(z1p, *mats); \
+                            mats += size; \
+                        break; \
+                    } \
                 } \
-                if (element == 0) { \
-                        z = lpsolvecaller->plhs; \
+                if (len != 1) { \
+                    add_next_index_zval(zp, z1p); \
                 } \
-                else { \
-                        MAKE_STD_ZVAL(z); \
-                } \
-        	array_init(z); \
-                z1 = z; \
-                matl0 = (long *) mat; \
-                matd0 = (double *) mat; \
-                mats0 = (char **) mat; \
-                for (i = 0; i < size; i++) { \
-                        matl = matl0++; \
-                        matd = matd0++; \
-                        mats = mats0++; \
-                        if (len != 1) { \
-                                z1 = NULL; \
-                        	MAKE_STD_ZVAL(z1); \
-        			array_init(z1); \
-                        } \
-                        for (j = 0; j < len; j++) { \
-                                switch (type) { \
-                                case IS_LONG: \
-                    			add_next_index_long(z1, *matl); \
-                                        matl += size; \
-                                        break; \
-                                case IS_DOUBLE: \
-                    			add_next_index_double(z1, *matd); \
-                                        matd += size; \
-                                        break; \
-                        	case IS_STRING: \
-                    			add_next_index_string(z1, *mats, 1); \
-                                        mats += size; \
-                                        break; \
-                                } \
-                	} \
-                        if (len != 1) { \
-                		add_next_index_zval(z, z1); \
-                        } \
-                } \
-                if (element != 0) \
-                	add_next_index_zval(lpsolvecaller->plhs, z); \
+            } \
+            if (element != 0) \
+                add_next_index_zval(lpsolvecaller->plhs, zp); \
         } \
-	if (freemat) \
-		free(mat); \
-}
+        if (freemat) \
+            free(mat); \
+    }
 
 double *CreateDoubleMatrix(structlpsolvecaller *lpsolvecaller, int m, int n, int element)
 {

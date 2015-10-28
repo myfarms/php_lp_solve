@@ -457,11 +457,11 @@ static int create_handle(structlpsolve *lpsolve, lprec *lp0, char *err)
         int i;
 
         if (lp0 == NULL)
-        	ErrMsgTxt(&lpsolve->lpsolvecaller, err);
-	for (i = 0; (i <= lp_last) && (lp[i] != NULL); i++);
-	if (i > lp_last) {
-	  	i = ++lp_last;
-                if ((i % LPSTEP) == 0) {
+            ErrMsgTxt(&lpsolve->lpsolvecaller, err);
+        for (i = 0; (i <= lp_last) && (lp[i] != NULL); i++);
+        if (i > lp_last) {
+            i = ++lp_last;
+                    if ((i % LPSTEP) == 0) {
 #if defined FORTIFY
                         Fortify_Disable(-1);
 #endif
@@ -2626,12 +2626,12 @@ static void impl_lp_solve_version(structlpsolve *lpsolve)
 
 static void impl_make_lp(structlpsolve *lpsolve)
 {
-        Long    *ipr;
+    Long    *ipr;
 
-        Check_nrhs(lpsolve, 2);
-        ipr = CreateLongMatrix(&lpsolve->lpsolvecaller, 1, 1, 0);
-	*ipr = create_handle(lpsolve, make_lp((int) GetRealScalar(&lpsolve->lpsolvecaller, 1), (int) GetRealScalar(&lpsolve->lpsolvecaller, 2)), "make_lp failed");
-        SetLongMatrix(&lpsolve->lpsolvecaller, ipr, 1, 1, 0, TRUE);
+    Check_nrhs(lpsolve, 2);
+    ipr = CreateLongMatrix(&lpsolve->lpsolvecaller, 1, 1, 0);
+    *ipr = create_handle(lpsolve, make_lp((int) GetRealScalar(&lpsolve->lpsolvecaller, 1), (int) GetRealScalar(&lpsolve->lpsolvecaller, 2)), "make_lp failed");
+    SetLongMatrix(&lpsolve->lpsolvecaller, ipr, 1, 1, 0, TRUE);
 }
 
 
@@ -4580,118 +4580,118 @@ static void signalconvention SIGINT_func(int sig)
 
 static void mainloop(structlpsolve *lpsolve)
 {
-	int	i;
-        hashelem *hp;
+    int	i;
+    hashelem *hp;
 
-        interrupted = FALSE;
-        signal(SIGINT, SIGINT_func);
+    interrupted = FALSE;
+    signal(SIGINT, SIGINT_func);
 
-        if (setjmp(lpsolve->lpsolvecaller.exit_mark) == 0) {
-                char buf[bufsz];
+    if (setjmp(lpsolve->lpsolvecaller.exit_mark) == 0) {
+        char buf[bufsz];
 
-                if (!initialized) {
-        		/* Register the Exit Function */
-                        registerExitFcn(lpsolve);
+        if (!initialized) {
+            /* Register the Exit Function */
+            registerExitFcn(lpsolve);
 
-        		/* Allocate a string array to store command */
+            /* Allocate a string array to store command */
 
-        		/* Allocate a string array to store error message */
+            /* Allocate a string array to store error message */
 
-                        /* create hashtable of all callbable commands to find them back quickly */
+            /* create hashtable of all callbable commands to find them back quickly */
 #if defined FORTIFY
-                        Fortify_Disable(-1);
+            Fortify_Disable(-1);
 #endif
-                        cmdhash = create_hash_table(sizeof(routines) / sizeof(*routines), 0);
-                        for (i = 0; i < (int) (sizeof(routines)/sizeof(*routines)); i++)
-                          	puthash(routines[i].cmd, i, NULL, cmdhash);
+            cmdhash = create_hash_table(sizeof(routines) / sizeof(*routines), 0);
+            for (i = 0; i < (int) (sizeof(routines)/sizeof(*routines)); i++)
+                puthash(routines[i].cmd, i, NULL, cmdhash);
 
-                        constanthash = create_hash_table(sizeof(constants) / sizeof(*constants), 0);
-                        for (i = 0; i < (int) (sizeof(constants)/sizeof(*constants)); i++)
-                          	puthash(constants[i].svalue, i, NULL, constanthash);
+            constanthash = create_hash_table(sizeof(constants) / sizeof(*constants), 0);
+            for (i = 0; i < (int) (sizeof(constants)/sizeof(*constants)); i++)
+                puthash(constants[i].svalue, i, NULL, constanthash);
 
 #if defined FORTIFY
-                        Fortify_Disable(-2);
+            Fortify_Disable(-2);
 #endif
 
-        		/* Initialise the lp array, and pointer to the last lp */
+            /* Initialise the lp array, and pointer to the last lp */
 
-        		lp_last = -1;
+            lp_last = -1;
 
-                        if (!init_lpsolve_lib()) {
-                                sprintf(buf, "Failed to initialise lpsolve library.%s", NEWLINE);
-                                ErrMsgTxt(&lpsolve->lpsolvecaller, buf);
-                        }
+            if (!init_lpsolve_lib()) {
+                sprintf(buf, "Failed to initialise lpsolve library.%s", NEWLINE);
+                ErrMsgTxt(&lpsolve->lpsolvecaller, buf);
+            }
 
-                        handlehash = NULL;
+            handlehash = NULL;
 
-                	initialized = TRUE;
+            initialized = TRUE;
 #                       if defined DEBUG
-                        	Printf("Initialised%s", NEWLINE);
+            Printf("Initialised%s", NEWLINE);
 #                       endif
-        	}
+        }
 
-        	/* Get the first argument as a string matrix */
+        /* Get the first argument as a string matrix */
 
-        	if (lpsolve->lpsolvecaller.nrhs < 1) {
-        		int majorversion, minorversion, release, build;
+        if (lpsolve->lpsolvecaller.nrhs < 1) {
+            int majorversion, minorversion, release, build;
 
-        		/* ErrMsgTxt(&lpsolve->lpsolvecaller, "At least one command is required."); */
-                        lp_solve_version(&majorversion, &minorversion, &release, &build);
-                        Printf(strdrivername "  " caller " Interface version " driverVERSION "%s" \
-                               "using lpsolve version %d.%d.%d.%d%s%s" \
-                               "Usage: ret = " strdrivername "(%sfunctionname%s, arg1, arg2, ...)%s",
-                               NEWLINE, majorversion, minorversion, release, build, NEWLINE, NEWLINE, quotechar, quotechar, NEWLINE);
-                        return;
-                }
+            /* ErrMsgTxt(&lpsolve->lpsolvecaller, "At least one command is required."); */
+            lp_solve_version(&majorversion, &minorversion, &release, &build);
+            Printf(strdrivername "  " caller " Interface version " driverVERSION "%s" \
+                    "using lpsolve version %d.%d.%d.%d%s%s" \
+                    "Usage: ret = " strdrivername "(%sfunctionname%s, arg1, arg2, ...)%s",
+                    NEWLINE, majorversion, minorversion, release, build, NEWLINE, NEWLINE, quotechar, quotechar, NEWLINE);
+            return;
+        }
 
-        	GetString(&lpsolve->lpsolvecaller, NULL, 0, lpsolve->cmd, cmdsz, TRUE);
+        GetString(&lpsolve->lpsolvecaller, NULL, 0, lpsolve->cmd, cmdsz, TRUE);
 
 #               if defined DEBUG
-               		Printf("%s%s", lpsolve->cmd, NEWLINE);
+        Printf("%s%s", lpsolve->cmd, NEWLINE);
 #               endif
 
-        	/* Now call the required part of the lp toolkit */
+        /* Now call the required part of the lp toolkit */
 
-                hp = findhash(lpsolve->cmd, cmdhash);
-                if (hp == NULL) {
-                        strcpy(buf, lpsolve->cmd);
-                        strncat(buf,": Unimplemented.", bufsz);
-                        ErrMsgTxt(&lpsolve->lpsolvecaller, buf);
-                }
-                i = hp->index;
-
-                if (routines[i].needshandle) {
-                        if (lpsolve->lpsolvecaller.nrhs < 2)
-        		        ErrMsgTxt(&lpsolve->lpsolvecaller, "An lp handle is required.");
-
-                        if (GetString(&lpsolve->lpsolvecaller, NULL, 1, buf, bufsz, FALSE)) {
-                                if (handlehash != NULL)
-                                	hp = findhash(buf, handlehash);
-                                else
-                                        hp = NULL;
-                                if (hp == NULL) {
-                                        char name[20 + bufsz];
-
-                                        strcpy(name, buf);
-                                        sprintf(buf, "Invalid model name: %s", name);
-                                        ErrMsgTxt(&lpsolve->lpsolvecaller, buf);
-                                }
-                                lpsolve->h = hp->index;
-                        }
-                        else {
-                                lpsolve->h = (int) GetRealScalar(&lpsolve->lpsolvecaller, 1);
-                        }
-
-                	if ((!handle_valid(lpsolve->h)) || ((lpsolve->lp = lp[lpsolve->h]) == NULL)) {
-                        	strcpy(buf, lpsolve->cmd);
-                        	strncat(buf, ": Invalid lp handle.", bufsz);
-                		ErrMsgTxt(&lpsolve->lpsolvecaller, buf);
-                	}
-                }
-                BEGIN_INTERRUPT_IMMEDIATELY_IN_FOREIGN_CODE;
-                routines[i].routine(lpsolve);
-                END_INTERRUPT_IMMEDIATELY_IN_FOREIGN_CODE;
+        hp = findhash(lpsolve->cmd, cmdhash);
+        if (hp == NULL) {
+            strcpy(buf, lpsolve->cmd);
+            strncat(buf,": Unimplemented.", bufsz);
+            ErrMsgTxt(&lpsolve->lpsolvecaller, buf);
         }
+        i = hp->index;
+
+        if (routines[i].needshandle) {
+            if (lpsolve->lpsolvecaller.nrhs < 2)
+                ErrMsgTxt(&lpsolve->lpsolvecaller, "An lp handle is required.");
+
+            if (GetString(&lpsolve->lpsolvecaller, NULL, 1, buf, bufsz, FALSE)) {
+                if (handlehash != NULL)
+                    hp = findhash(buf, handlehash);
+                else
+                    hp = NULL;
+                if (hp == NULL) {
+                    char name[20 + bufsz];
+
+                    strcpy(name, buf);
+                    sprintf(buf, "Invalid model name: %s", name);
+                    ErrMsgTxt(&lpsolve->lpsolvecaller, buf);
+                }
+                lpsolve->h = hp->index;
+            }
+            else {
+                lpsolve->h = (int) GetRealScalar(&lpsolve->lpsolvecaller, 1);
+            }
+
+            if ((!handle_valid(lpsolve->h)) || ((lpsolve->lp = lp[lpsolve->h]) == NULL)) {
+                strcpy(buf, lpsolve->cmd);
+                strncat(buf, ": Invalid lp handle.", bufsz);
+                ErrMsgTxt(&lpsolve->lpsolvecaller, buf);
+            }
+        }
+        BEGIN_INTERRUPT_IMMEDIATELY_IN_FOREIGN_CODE;
+        routines[i].routine(lpsolve);
+        END_INTERRUPT_IMMEDIATELY_IN_FOREIGN_CODE;
+    }
 }
 
 callerPrototype(drivername)
