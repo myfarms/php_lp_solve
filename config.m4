@@ -3,18 +3,7 @@ PHP_ARG_WITH(phplpsolve55, for liblpsolve55,
                           If DIR is not specified, use the system library.])
 
 if test $PHP_PHPLPSOLVE55 != "no"; then
-#  if test -f "$PHP_PHPLPSOLVE55/lp_lib.h"; then
-#    PHP_CHECK_LIBRARY(lpsolve55, make_lp,,[AC_MSG_ERROR([Invalid phplpsolve55 library, make_lp() not found])])
-#  else
-#    dnl This will cancel configuration if the required headers aren't found
-#    AC_MSG_ERROR([lp_lib.h not found])
-#  fi
-
-#  PHP_ADD_LIBRARY_WITH_PATH(lpsolve55, /usr/local/lib, PHPLPSOLVE55_SHARED_LIBADD)
-  #PHP_ADD_LIBRARY(lpsolve55,, PHPLPSOLVE55_SHARED_LIBADD)
-  #PHP_ADD_LIBRARY(lpsolve55)
   EXTRA_LIBS="-lm"
-  #AC_MSG_ERROR($LDFLAGS)
   AC_CHECK_LIB(dl, dlopen, [
     EXTRA_LIBS="$EXTRA_LIBS -ldl"
     PHP_ADD_LIBRARY(dl, 1, PHPLPSOLVE55_SHARED_LIBADD)
@@ -42,7 +31,6 @@ if test $PHP_PHPLPSOLVE55 != "no"; then
   for i in /usr/local/lib /usr/lib /lib; do
     if test -r "$i/liblpsolve55.so"; then
       PHP_CHECK_LIBRARY(lpsolve55, make_lp,[
-          #AC_DEFINE([HAVE_LIBLPSOLVE55], 1, [liblpsolve55 found and included])
           PHP_ADD_LIBRARY_WITH_PATH(lpsolve55, $i, PHPLPSOLVE55_SHARED_LIBADD)
           PHP_ADD_INCLUDE($LIBLPSOLVE_INCDIR)
           LIBLPSOLVE_LIBDIR="$i"
@@ -58,7 +46,6 @@ if test $PHP_PHPLPSOLVE55 != "no"; then
 
   if test -z "$LIBLPSOLVE_LIBDIR"; then
   PHP_CHECK_LIBRARY(lpsolve55, make_lp,[
-        #AC_DEFINE([HAVE_LIBLPSOLVE55], 1, [liblpsolve55 found and included])
         PHP_ADD_LIBRARY(lpsolve55, 1, PHPLPSOLVE55_SHARED_LIBADD)
         PHP_ADD_INCLUDE($LIBLPSOLVE_INCDIR)
         LIBLPSOLVE_LIBDIR="$i"
@@ -73,7 +60,4 @@ if test $PHP_PHPLPSOLVE55 != "no"; then
   AC_DEFINE(DEMO,1,[DEMO code in lpsolve])
   AC_DEFINE(PHP,1,[liblpsolve55 found and included])
   PHP_NEW_EXTENSION(phplpsolve55, PHPmod.c hash.c lpsolve.c, $ext_shared)
-  #AC_MSG_ERROR($PHPLPSOLVE55_SHARED_LIBADD)
-  PHP_SUBST(PHPLPSOLVE55_SHARED_LIBADD)
 fi
-
