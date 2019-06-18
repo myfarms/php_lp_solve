@@ -29,35 +29,40 @@ if test $PHP_PHPLPSOLVE55 != "no"; then
   dnl Find the shared library:
   LDFLAGS="-Wl,--no-as-needed"
   for i in /usr/local/lib /usr/lib /lib; do
-    if test -r "$i/liblpsolve55.so"; then
-      PHP_CHECK_LIBRARY(lpsolve55, make_lp,[
-          PHP_ADD_LIBRARY_WITH_PATH(lpsolve55, $i, PHPLPSOLVE55_SHARED_LIBADD)
+    for j in lpsolve55_pic lpsolve55; do
+      if test -r "$i/lib$j.so"; then
+        PHP_CHECK_LIBRARY($j, make_lp,[
+            PHP_ADD_LIBRARY_WITH_PATH($j, $i, PHPLPSOLVE55_SHARED_LIBADD)
+            PHP_ADD_INCLUDE($LIBLPSOLVE_INCDIR)
+            LIBLPSOLVE_LIBDIR="$i"
+            break 2
+          ],[
+            continue
+          ],[
+            -L$i $EXTRA_LIBS
+          ]
+        )
+      fi
+    done
+  done
+
+  for i in lpsolve55_pic lpsolve55; do
+    if test -z "$LIBLPSOLVE_LIBDIR"; then
+    PHP_CHECK_LIBRARY($i, make_lp,[
+          PHP_ADD_LIBRARY($i, 1, PHPLPSOLVE55_SHARED_LIBADD)
           PHP_ADD_INCLUDE($LIBLPSOLVE_INCDIR)
           LIBLPSOLVE_LIBDIR="$i"
-          break
         ],[
-          continue
+          AC_MSG_ERROR([Could not find liblpsolve55.so or symbol make_lp.  Check version and config.log for more information.])
         ],[
-          -L$i $EXTRA_LIBS
+          $EXTRA_LIBS
         ]
       )
     fi
   done
-
-  if test -z "$LIBLPSOLVE_LIBDIR"; then
-  PHP_CHECK_LIBRARY(lpsolve55, make_lp,[
-        PHP_ADD_LIBRARY(lpsolve55, 1, PHPLPSOLVE55_SHARED_LIBADD)
-        PHP_ADD_INCLUDE($LIBLPSOLVE_INCDIR)
-        LIBLPSOLVE_LIBDIR="$i"
-      ],[
-        AC_MSG_ERROR([Could not find liblpsolve55.so or symbol make_lp.  Check version and config.log for more information.])
-      ],[
-        $EXTRA_LIBS
-      ]
-    )
-  fi
   LDFLAGS=""
   AC_DEFINE(DEMO,1,[DEMO code in lpsolve])
   AC_DEFINE(PHP,1,[liblpsolve55 found and included])
+  PHP_SUBST(PHPLPSOLVE55_SHARED_LIBADD)
   PHP_NEW_EXTENSION(phplpsolve55, PHPmod.c hash.c lpsolve.c, $ext_shared)
 fi
