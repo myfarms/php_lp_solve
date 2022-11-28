@@ -1,9 +1,15 @@
 #include "lpsolvecaller.h"
 
-extern PHP_FUNCTION(drivername);
+extern PHP_FUNCTION(lpsolve);
+
+
+/* argument information */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_fake_php8, 0, 0, 1)
+    ZEND_ARG_TYPE_INFO(0, identifier, IS_STRING, 0)
+ZEND_END_ARG_INFO()
 
 static zend_function_entry php_phplpsolve55_functions[] = {
-    PHP_FE(drivername, NULL)
+    PHP_FE(lpsolve, arginfo_fake_php8)
     { NULL, NULL, NULL }
 };
 
@@ -171,7 +177,7 @@ static char *empty = ""; /* ok to be static */
 
 int ErrMsgTxt(structlpsolvecaller *lpsolvecaller, char *str)
 {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "%s", str);
+        php_error_docref(NULL, E_ERROR, "%s", str);
         return(0);
 }
 
